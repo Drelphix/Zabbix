@@ -1,0 +1,114 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 920e53f97fd445d1b960166cfcbc0603
+      name: GSM
+  templates:
+    - uuid: 46af273d055e49388c41e3cd79e67a72
+      template: GSMGatewayMonitoringSynway
+      name: GSMGatewayMonitoringSynway
+      groups:
+        - name: GSM
+      items:
+        - uuid: ab85e05215b341478fb538bda1f65a9c
+          name: 'GSM SIM monitoring'
+          key: 'gsm.monitoring[{HOST.HOST},{$LOGIN},{$PASSWORD}]'
+          value_type: TEXT
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |2
+                    const regex = /Starting ChromeDriver[\s\S]*?successfully on port \d+\./;  
+                      return value.replace(regex, '');
+      discovery_rules:
+        - uuid: 86df548021824f4babe67b97a42ca0bb
+          name: 'GSM SIM LLD'
+          type: DEPENDENT
+          key: gsm.monitoring.lld
+          lifetime_type: DELETE_IMMEDIATELY
+          item_prototypes:
+            - uuid: 095331b9bfc0449aad5a2fb29ed71f3d
+              name: 'GSM Connection'
+              type: DEPENDENT
+              key: 'gsm.monitoring.connection.port[{#PORT}]'
+              value_type: TEXT
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.data.[?(@.Port == "{#PORT}")].Connection'
+                - type: TRIM
+                  parameters:
+                    - '[]'
+              master_item:
+                key: 'gsm.monitoring[{HOST.HOST},{$LOGIN},{$PASSWORD}]'
+            - uuid: 85edb5f13ba5436a84a16cfc8ed61866
+              name: 'GSM Port {#PORT}'
+              type: DEPENDENT
+              key: 'gsm.monitoring.port[{#PORT}]'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.data.[?(@.Port == "{#PORT}")].Port'
+                - type: TRIM
+                  parameters:
+                    - '[]'
+              master_item:
+                key: 'gsm.monitoring[{HOST.HOST},{$LOGIN},{$PASSWORD}]'
+            - uuid: 0bf18c2099b2414ca33295935f194e99
+              name: 'GSM Sip Status'
+              type: DEPENDENT
+              key: 'gsm.monitoring.sip.port[{#PORT}]'
+              value_type: TEXT
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.data.[?(@.Port == "{#PORT}")].SIPStatus'
+                - type: TRIM
+                  parameters:
+                    - '[]'
+              master_item:
+                key: 'gsm.monitoring[{HOST.HOST},{$LOGIN},{$PASSWORD}]'
+            - uuid: ac0c4cd01b1c4e84becf440824e181e0
+              name: 'GSM State'
+              type: DEPENDENT
+              key: 'gsm.monitoring.state.port[{#PORT}]'
+              value_type: TEXT
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.data.[?(@.Port == "{#PORT}")].State'
+                - type: TRIM
+                  parameters:
+                    - '[]'
+              master_item:
+                key: 'gsm.monitoring[{HOST.HOST},{$LOGIN},{$PASSWORD}]'
+          trigger_prototypes:
+            - uuid: 32264656eca7429b95b329b5a336db90
+              expression: 'last(/GSMGatewayMonitoringSynway/gsm.monitoring.connection.port[{#PORT}],#3)<>"Connect" and last(/GSMGatewayMonitoringSynway/gsm.monitoring.state.port[{#PORT}],#3)="Unusable"'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'last(/GSMGatewayMonitoringSynway/gsm.monitoring.connection.port[{#PORT}],#2)="Connect" and last(/GSMGatewayMonitoringSynway/gsm.monitoring.state.port[{#PORT}],#3)<>"Unusable"'
+              name: 'GSM Port {#PORT} Unavailable'
+              opdata: '{#STATE}'
+              priority: HIGH
+              description: ''
+              manual_close: 'YES'
+          master_item:
+            key: 'gsm.monitoring[{HOST.HOST},{$LOGIN},{$PASSWORD}]'
+          lld_macro_paths:
+            - lld_macro: '{#CONNECTION}'
+              path: $.Connection
+            - lld_macro: '{#PORT}'
+              path: $.Port
+            - lld_macro: '{#SIP}'
+              path: $.SIPStatus
+            - lld_macro: '{#STATE}'
+              path: $.State
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.data
+      macros:
+        - macro: '{$LOGIN}'
+          value: admin
+        - macro: '{$PASSWORD}'
+          value: admin
