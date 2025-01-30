@@ -10,9 +10,6 @@ if (-not $GatewayIP -or -not $Username -or -not $Password) {
     exit 1
 }
 
-# Импортируем модуль Selenium
-#Import-Module Selenium
-
 # Указываем путь к WebDriver.Support.dll
 Add-Type -Path "C:\GSMMonitoring\driver\WebDriver.Support.dll"
 
